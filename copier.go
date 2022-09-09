@@ -25,7 +25,7 @@ const (
 	// Denotes that the value as been copied
 	hasCopied
 
-	// Some default converter types for a nicer syntax
+	// String Some default converter types for a nicer syntax
 	String  string  = ""
 	Bool    bool    = false
 	Int     int     = 0
@@ -37,9 +37,10 @@ const (
 type Option struct {
 	// setting this value to true will ignore copying zero values of all the fields, including bools, as well as a
 	// struct having all it's fields set to their zero values respectively (see IsZero() in reflect/value.go)
-	IgnoreEmpty bool
-	DeepCopy    bool
-	Converters  []TypeConverter
+	IgnoreEmpty  bool
+	DeepCopy     bool
+	Converters   []TypeConverter
+	IgnoreFields []string
 }
 
 func (opt Option) converters() map[converterPair]TypeConverter {
@@ -83,8 +84,10 @@ type tagNameMapping struct {
 }
 
 // Copy copy things
-func Copy(toValue interface{}, fromValue interface{}) (err error) {
-	return copier(toValue, fromValue, Option{})
+func Copy(toValue interface{}, fromValue interface{}, ignoreFields ...string) (err error) {
+	return copier(toValue, fromValue, Option{
+		IgnoreFields: ignoreFields,
+	})
 }
 
 // CopyWithOption copy with option
@@ -100,6 +103,12 @@ func copier(toValue interface{}, fromValue interface{}, opt Option) (err error) 
 		to         = indirect(reflect.ValueOf(toValue))
 		converters = opt.converters()
 	)
+
+	ignoreFields := map[string]bool{}
+
+	for _, item := range opt.IgnoreFields {
+		ignoreFields[item] = true
+	}
 
 	if !to.CanAddr() {
 		return ErrInvalidCopyDestination
@@ -254,6 +263,10 @@ func copier(toValue interface{}, fromValue interface{}, opt Option) (err error) 
 
 				// Check if we should ignore copying
 				if (fieldFlags & tagIgnore) != 0 {
+					continue
+				}
+
+				if _, ok := ignoreFields[name]; ok {
 					continue
 				}
 
