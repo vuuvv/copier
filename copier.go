@@ -41,6 +41,7 @@ type Option struct {
 	DeepCopy     bool
 	Converters   []TypeConverter
 	IgnoreFields []string
+	IncludeFields []string
 }
 
 func (opt Option) converters() map[converterPair]TypeConverter {
@@ -108,6 +109,11 @@ func copier(toValue interface{}, fromValue interface{}, opt Option) (err error) 
 
 	for _, item := range opt.IgnoreFields {
 		ignoreFields[item] = true
+	}
+
+	includeFields := map[string]bool{}
+	for _, item := range opt.IncludeFields {
+		includeFields[item] = true
 	}
 
 	if !to.CanAddr() {
@@ -264,6 +270,13 @@ func copier(toValue interface{}, fromValue interface{}, opt Option) (err error) 
 				// Check if we should ignore copying
 				if (fieldFlags & tagIgnore) != 0 {
 					continue
+				}
+
+				// 指定了includeFields，且不包含当前字段，跳过
+				if len(opt.IncludeFields) > 0 {
+					if _, ok := includeFields[name]; !ok {
+						continue
+					}
 				}
 
 				if _, ok := ignoreFields[name]; ok {
